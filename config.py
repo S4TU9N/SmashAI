@@ -23,3 +23,9 @@ ARENA_CONFIGS = {
         "spawns": [(400, 400), (800, 400)],
     },
 }
+
+
+COMBO_WINDOW = 1.0
+COMBO_FINISHER_HIT = 3
+
+AIR_FRICTION = 300

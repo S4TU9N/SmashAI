@@ -15,5 +15,14 @@ class PlayerController:
                         actions.add("move_right")
                     case "jump":
                         actions.add("jump")
+                    case "jab":
+                        actions.add("jab")
+                    case "heavy":
+                        actions.add("heavy")
 
         return actions
+
+
+class AIController:
+    def get_actions(self):
+        return {}
