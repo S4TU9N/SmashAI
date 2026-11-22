@@ -15,6 +15,13 @@ class SmashEnvironment(gym.Env):
 
         self.render_mode = render_mode
 
+        self.renderer = None
+
+        if render_mode is not None:
+            from renderer import Renderer
+
+            self.renderer = Renderer(None)
+
         self.arena = None
         self.fighter = None
         self.opponent = None
@@ -60,6 +67,15 @@ class SmashEnvironment(gym.Env):
             dt,
         )
 
+        if self.renderer:
+            self.renderer.poll_events()
+
+            if self.renderer.running:
+                self.renderer.draw(self.match.fighters, self.match)
+
+                fps = 0 if self.render_mode == "rendered" else 60
+                self.renderer.tick(fps)
+
         terminated = (
             result is not False and self.match.elapsed_time < self.match.max_time
         )
@@ -81,7 +97,7 @@ class SmashEnvironment(gym.Env):
 
         return observation, reward, terminated, truncated, {}
 
-    def reset(self, seed=None, options=None):
+    def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
 
         self.arena = Arena(scale=config.ARENA_SCALE)
@@ -96,10 +112,16 @@ class SmashEnvironment(gym.Env):
             max_time=config.MATCH_MAX_TIME,
         )
 
-        arena_name = self.np_random.choice(list(config.ARENA_CONFIGS))
+        arena_name = self.np_random.choice(
+            ["battlefield", "final_destination"],
+            p=[0.8, 0.2],
+        )
 
         self.arena.load(arena_name)
         self.match.start()
+
+        if self.renderer:
+            self.renderer.set_arena(self.arena)
 
         observation = get_observation(
             self.fighter,
@@ -108,3 +130,8 @@ class SmashEnvironment(gym.Env):
         )
 
         return observation, {}
+
+    def close(self):
+        if self.renderer:
+            self.renderer.close()
+            self.renderer = None

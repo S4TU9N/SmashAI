@@ -1,13 +1,19 @@
-import torch
+import gymnasium as gym
 
-from ai.policy import PolicyNetwork, sample_action
-from ai.value import ValueNetwork
+from ai.environment import SmashEnvironment
 
-policy = PolicyNetwork()
-observation = torch.randn(18)
+env = SmashEnvironment(render_mode="realtime")
 
-critic = ValueNetwork()
-value = critic(observation)
+observation, info = env.reset()
 
-print("value:", value)
-print("shape:", value.shape)
+try:
+    while True:
+        action = env.action_space.sample()
+
+        observation, reward, terminated, truncated, info = env.step(action)
+
+        if terminated or truncated:
+            print("Episode finished. Reward:", reward)
+            break
+finally:
+    env.close()

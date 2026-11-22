@@ -6,7 +6,7 @@ import config
 
 
 class Renderer:
-    def __init__(self, arena):
+    def __init__(self, arena=None):
         pygame.init()
         pygame.font.init()
         self.screen = pygame.display.set_mode(config.arena_size)
@@ -17,11 +17,11 @@ class Renderer:
 
         self.font = pygame.font.Font(None, 48)
 
-    @property
-    def dt(self):
-        return self.clock.tick(60) / 1000
+    def tick(self, fps=0):
+        return self.clock.tick(fps) / 1000
 
     def get_input(self):
+        self.poll_events()
 
         keys = pygame.key.get_pressed()
 
@@ -40,12 +40,18 @@ class Renderer:
 
     def draw(self, fighters, match):
         self.screen.fill((30, 30, 30))
-        for platform in self.arena.platforms:
-            pygame.draw.rect(
-                self.screen,
-                (120, 120, 120),
-                (round(platform.x), round(platform.y), platform.width, platform.height),
-            )
+        if self.arena:
+            for platform in self.arena.platforms:
+                pygame.draw.rect(
+                    self.screen,
+                    (120, 120, 120),
+                    (
+                        round(platform.x),
+                        round(platform.y),
+                        platform.width,
+                        platform.height,
+                    ),
+                )
 
         for fighter in fighters:
             hitbox = fighter.attack_hitbox
@@ -79,6 +85,9 @@ class Renderer:
             text = self.font.render(damage, True, fighter.color)
 
             self.screen.blit(text, (x, y))
+
+    def set_arena(self, arena):
+        self.arena = arena
 
     def close(self):
         self.running = False
