@@ -22,9 +22,6 @@ class Renderer:
         return self.clock.tick(60) / 1000
 
     def get_input(self):
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.close()
 
         keys = pygame.key.get_pressed()
 
@@ -35,6 +32,11 @@ class Renderer:
             "jab": keys[pygame.K_j],
             "heavy": keys[pygame.K_k],
         }
+
+    def poll_events(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.close()
 
     def draw(self, fighters, match):
         self.screen.fill((30, 30, 30))

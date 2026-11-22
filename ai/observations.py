@@ -35,6 +35,11 @@ def get_observation(fighter, opponent, arena):
         / width
     )
 
+    has_platform = float(arena.has_platform_below(fighter))
+    platform_distance = get_nearest_platform_distance(fighter, arena)
+
+    remaining_jumps = fighter.jumps / fighter.DOUBLE_JUMPS
+
     return np.array(
         [
             relative_x,
@@ -52,6 +57,30 @@ def get_observation(fighter, opponent, arena):
             ATTACK_PHASES[opponent.get_attack_phase()],
             own_edge_distance,
             opponent_edge_distance,
+            has_platform,
+            platform_distance,
+            remaining_jumps,
         ],
         dtype=np.float32,
     )
+
+
+def get_nearest_platform_distance(fighter, arena):
+    nearest_distance = float("inf")
+
+    for platform in arena.platforms:
+        dx = max(
+            platform.left - fighter.right,
+            fighter.left - platform.right,
+            0,
+        )
+
+        dy = abs(platform.top - fighter.bottom)
+
+        distance = (dx**2 + dy**2) ** 0.5
+        nearest_distance = min(nearest_distance, distance)
+
+    if nearest_distance == float("inf"):
+        return 1.0
+
+    return min(nearest_distance / config.arena_size[0], 1.0)

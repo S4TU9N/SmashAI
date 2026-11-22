@@ -3,6 +3,7 @@ import numpy as np
 import config
 import simulation as s
 from ai.observations import get_observation
+from ai.rewards import calculate_reward
 from controllers import AIController
 
 arena = s.Arena(config.ARENA_SCALE)
@@ -47,6 +48,12 @@ if config.RENDER:
             break
 
         result = match.tick(dt)
+
+        for fighter in match.fighters:
+            reward = calculate_reward(fighter, match.events, dt)
+
+            if reward:
+                print(f"Reward: {reward}")
 
         for event in match.events:
             print(event["type"], event)

@@ -109,8 +109,13 @@ class Fighter:
         self.combo_count = 0
         self.combo_timer = 0.0
 
+        self.unsupported_time = 0.0
+
+        self.DOUBLE_JUMPS = 1
+        self.jumps = self.DOUBLE_JUMPS
+
     def can_jump(self) -> bool:
-        return self.grounded
+        return self.grounded or self.jumps > 0
 
     @property
     def left(self):
@@ -255,6 +260,8 @@ class Fighter:
                 break
 
         self.grounded = detect_collide
+        if self.grounded:
+            self.jumps = 1
 
     def apply_input(self, actions):
         if self.hitstun_timer > 0:
@@ -290,7 +297,12 @@ class Fighter:
                 self.dx = move * self.speed
 
             if jump and self.can_jump():
-                self.dy = -self.jump_height
+                if not self.grounded:
+                    self.jumps -= 1
+                    self.dy = -self.jump_height * 0.5
+                else:
+                    self.dy = -self.jump_height
+
                 self.grounded = False
 
     def get_attack_phase(self):
@@ -320,7 +332,7 @@ class Arena:
 
         self.scale = scale
 
-        self.blast_zone_margin = 150 * self.scale
+        self.blast_zone_margin = 300 * self.scale
         self.blast_zone = (
             -self.blast_zone_margin,
             -self.blast_zone_margin,
@@ -343,6 +355,17 @@ class Arena:
         self.spawn_positions = [
             (x * self.scale, y * self.scale) for x, y in spawn_positions
         ]
+
+    def has_platform_below(self, fighter):
+        for platform in self.platforms:
+            horizontally_overlapping = (
+                fighter.right > platform.left and fighter.left < platform.right
+            )
+
+            if horizontally_overlapping and fighter.bottom <= platform.top:
+                return True
+
+        return False
 
     def is_out_of_bounds(self, fighter):
         return (
@@ -462,5 +485,10 @@ class Match:
                 if self.arena.is_out_of_bounds(fighter):
                     self.eliminate(fighter)
                     self.respawn(fighter)
+            if self.arena.has_platform_below(fighter):
+                fighter.unsupported_time = 0.0
+            else:
+                fighter.unsupported_time += dt
+
         self.check_collisions()
         return self.check_status()
