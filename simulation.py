@@ -11,7 +11,7 @@ ATTACKS = {
         "knockback": 5,
         "lunge": 20,
         "hitbox": (30, 10, 35, 25),
-        "hitstun": 6,
+        "hitstun": 10,
         "finisher_multiplier": 1.75,
     },
     "heavy": {
@@ -22,7 +22,7 @@ ATTACKS = {
         "knockback": 6,
         "lunge": 60,
         "hitbox": (30, 5, 55, 35),
-        "hitstun": 14,
+        "hitstun": 20,
         "finisher_multiplier": 2.0,
     },
 }

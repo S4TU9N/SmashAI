@@ -1,26 +1,29 @@
 import numpy as np
 import torch
 
+from ai.policy import PolicyNetwork
+from ai.ppo import create_optimizers, train
 from ai.rollout import RolloutBuffer
+from ai.value import ValueNetwork
 
 buffer = RolloutBuffer()
 
-observation = np.zeros(18, dtype=np.float32)
-action = torch.tensor([1.0, 0.0, 1.0, 0.0, 0.0])
-log_probability = torch.tensor(-2.5)
-value = torch.tensor(0.75)
+for _ in range(128):
+    observation = np.random.randn(18).astype(np.float32)
 
-buffer.add(
-    observation,
-    action,
-    log_probability,
-    reward=1.5,
-    value=value,
-    terminated=False,
-    truncated=False,
-)
+    with torch.no_grad():
+        observation_tensor = torch.tensor(observation)
+        logits = policy(observation_tensor)
+        action, log_probability = sample_action(logits)
+        value_estimate = value(observation_tensor)
 
-tensors = buffer.get_tensors()
-
-for tensor in tensors:
-    print(tensor.shape, tensor.dtype, tensor)
+    buffer.add(
+        observation,
+        action,
+        log_probability,
+        np.random.randn(),
+        value_estimate,
+        torch.tensor(0.0),
+        False,
+        False,
+    )

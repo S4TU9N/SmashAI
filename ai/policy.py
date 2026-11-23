@@ -25,3 +25,12 @@ def sample_action(logits):
     log_probability = distribution.log_prob(action).sum()
 
     return action, log_probability
+
+
+def evaluate_actions(logits, actions):
+    distribution = torch.distributions.Bernoulli(logits=logits)
+
+    log_probabilities = distribution.log_prob(actions).sum(dim=-1)
+    entropy = distribution.entropy().sum(dim=-1)
+
+    return log_probabilities, entropy

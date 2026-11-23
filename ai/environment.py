@@ -95,7 +95,17 @@ class SmashEnvironment(gym.Env):
             self.arena,
         )
 
-        return observation, reward, terminated, truncated, {}
+        info = {}
+
+        if terminated or truncated:
+            if result is self.fighter:
+                info["result"] = "win"
+            elif result is self.opponent:
+                info["result"] = "loss"
+            else:
+                info["result"] = "draw"
+
+        return observation, reward, terminated, truncated, info
 
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
