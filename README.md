@@ -25,7 +25,7 @@ A simple 2D platform-fighting game inspired by Super Smash Bros., with a custom 
 Clone the repository:
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/S4TU9N/SmashAI
 cd SmashAI
 ```
 
