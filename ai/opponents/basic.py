@@ -1,5 +1,5 @@
 class BasicOpponent:
-    def get_actions(self, fighter, opponent):
+    def get_actions(self, fighter, opponent, _):
         actions = set()
 
         distance = opponent.x - fighter.x

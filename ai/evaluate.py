@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import torch
 
 from .checkpoint import read_checkpoint
@@ -7,7 +5,15 @@ from .environment import SmashEnvironment
 from .policy import PolicyNetwork
 
 
-def evaluate(checkpoint_path, episodes, agent_config):
+def evaluate(
+    checkpoint_path,
+    episodes,
+    agent_config,
+    opponent_class,
+    render_mode=None,
+    quiet=False,
+    silent=False,
+):
     if episodes < 1:
         raise ValueError("episodes must be at least 1")
 
@@ -17,7 +23,11 @@ def evaluate(checkpoint_path, episodes, agent_config):
     policy.load_state_dict(checkpoint["policy"])
     policy.eval()
 
-    env = SmashEnvironment(agent_config, render_mode=None)
+    env = SmashEnvironment(
+        agent_config,
+        opponent_class=opponent_class,
+        render_mode=render_mode,
+    )
 
     results = {
         "win": 0,
@@ -30,7 +40,7 @@ def evaluate(checkpoint_path, episodes, agent_config):
     total_duration = 0.0
 
     try:
-        for _ in range(episodes):
+        for episode in range(episodes):
             observation, _ = env.reset()
 
             terminated = False
@@ -56,14 +66,17 @@ def evaluate(checkpoint_path, episodes, agent_config):
     finally:
         env.close()
 
-    print(f"\nevaluation: {episodes} episodes")
-    print("-" * 30)
+    if not silent:
+        print(f"\nevaluation: {episodes} episodes")
+        print("-" * 30)
 
-    for result, count in results.items():
-        percentage = count / episodes * 100
-        print(f"{result}: {count} ({percentage:.1f}%)")
+        for result, count in results.items():
+            percentage = count / episodes * 100
+            print(f"{result}: {count} ({percentage:.1f}%)")
 
-    print("-" * 30)
-    print(f"average agent damage: {total_agent_damage / episodes:.1f}%")
-    print(f"average opponent damage: {total_opponent_damage / episodes:.1f}%")
-    print(f"average duration: {total_duration / episodes:.1f}s")
+        print("-" * 30)
+
+        if not quiet:
+            print(f"average agent damage: {total_agent_damage / episodes:.1f}%")
+            print(f"average opponent damage: {total_opponent_damage / episodes:.1f}%")
+            print(f"average duration: {total_duration / episodes:.1f}s")

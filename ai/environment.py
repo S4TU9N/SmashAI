@@ -1,3 +1,5 @@
+import random
+
 import gymnasium as gym
 import numpy as np
 
@@ -5,17 +7,19 @@ import config
 from simulation import Arena, Fighter, Match
 
 from .observations import get_observation
-from .opponents import BasicOpponent
+from .opponents.basic import BasicOpponent
 from .rewards import calculate_reward
 
 
 class SmashEnvironment(gym.Env):
-    def __init__(self, agent_config, render_mode=None):
+    def __init__(self, agent_config, opponent_class=BasicOpponent, render_mode=None):
         super().__init__()
 
         self.agent_config = agent_config
 
         self.render_mode = render_mode
+
+        self.opponent_class = opponent_class
 
         self.renderer = None
 
@@ -56,6 +60,7 @@ class SmashEnvironment(gym.Env):
         opponent_actions = self.opponent_controller.get_actions(
             self.opponent,
             self.fighter,
+            self.arena,
         )
 
         self.fighter.apply_input(agent_actions)
@@ -73,7 +78,7 @@ class SmashEnvironment(gym.Env):
             if self.renderer.running:
                 self.renderer.draw(self.match.fighters, self.match)
 
-                fps = 0 if self.render_mode == "rendered" else 60
+                fps = 0 if self.render_mode == "render" else 60
                 self.renderer.tick(fps)
 
         terminated = (
@@ -117,7 +122,7 @@ class SmashEnvironment(gym.Env):
         self.arena = Arena(scale=config.ARENA_SCALE)
         self.fighter = Fighter(name="agent")
         self.opponent = Fighter(name="opponent")
-        self.opponent_controller = BasicOpponent()
+        self.opponent_controller = self.opponent_class()
 
         self.match = Match(
             fighters=[self.fighter, self.opponent],
@@ -126,10 +131,10 @@ class SmashEnvironment(gym.Env):
             max_time=config.MATCH_MAX_TIME,
         )
 
-        arena_name = self.np_random.choice(
+        arena_name = random.choices(
             ["battlefield", "final_destination"],
-            p=[0.8, 0.2],
-        )
+            weights=[0.8, 0.2],
+        )[0]
 
         self.arena.load(arena_name)
         self.match.start()

@@ -4,6 +4,7 @@ from pathlib import Path
 
 from ai.checkpoint import read_checkpoint
 from ai.evaluate import evaluate
+from ai.opponents import AggressiveOpponent, BasicOpponent, DefensiveOpponent
 from ai.train import main as train
 
 
@@ -31,10 +32,31 @@ def list_agents():
         print("no agents found")
         return
 
-    print("available agents:")
+    print("available agents:\n")
 
     for agent in agents:
-        print(f"- {agent}")
+        checkpoint_path = Path("checkpoints") / agent / "latest.pt"
+
+        print(agent)
+
+        if checkpoint_path.exists():
+            checkpoint = read_checkpoint(checkpoint_path)
+            metadata = checkpoint.get("metadata", {})
+
+            print("  checkpoint: available")
+            print(f"  iteration: {metadata.get('iteration', 'unknown')}")
+            print(f"  timesteps: {metadata.get('total_timesteps', 'unknown')}")
+        else:
+            print("  checkpoint: missing")
+
+        print()
+
+
+OPPONENTS = {
+    "basic": BasicOpponent,
+    "aggressive": AggressiveOpponent,
+    "defensive": DefensiveOpponent,
+}
 
 
 def main():
@@ -43,6 +65,7 @@ def main():
 
     train_parser = subparsers.add_parser("train")
     train_parser.add_argument("--agent", default="main")
+    train_parser.add_argument("--iterations", type=int)
 
     subparsers.add_parser("list")
 
@@ -53,7 +76,25 @@ def main():
     checkpoint_group.add_argument("--agent")
     checkpoint_group.add_argument("--checkpoint", type=Path)
 
+    train_output = train_parser.add_mutually_exclusive_group()
+    train_output.add_argument("-q", "--quiet", action="store_true")
+    train_output.add_argument("-Q", "--silent", action="store_true")
+
+    evaluate_output = evaluate_parser.add_mutually_exclusive_group()
+    evaluate_output.add_argument("-q", "--quiet", action="store_true")
+    evaluate_output.add_argument("-Q", "--silent", action="store_true")
+
+    evaluate_parser.add_argument(
+        "--render-mode",
+        choices=["render", "realtime"],
+    )
+
     evaluate_parser.add_argument("--episodes", type=int, default=100)
+    evaluate_parser.add_argument(
+        "--opponent",
+        choices=OPPONENTS,
+        default="basic",
+    )
 
     args = parser.parse_args()
 
@@ -62,7 +103,13 @@ def main():
 
     elif args.command == "train":
         agent_config = load_agent_config(args.agent)
-        train(args.agent, agent_config)
+        train(
+            args.agent,
+            agent_config,
+            args.iterations,
+            quiet=args.quiet,
+            silent=args.silent,
+        )
 
     elif args.command == "evaluate":
         if args.agent:
@@ -79,6 +126,10 @@ def main():
             checkpoint_path,
             args.episodes,
             agent_config,
+            OPPONENTS[args.opponent],
+            render_mode=args.render_mode,
+            quiet=args.quiet,
+            silent=args.silent,
         )
 
 
