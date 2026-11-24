@@ -2,7 +2,7 @@ class AggressiveOpponent:
     def __init__(self):
         self.attack_cooldown = 0
 
-    def get_actions(self, fighter, opponent):
+    def get_actions(self, fighter, opponent, _):
         actions = set()
 
         distance = opponent.x - fighter.x
