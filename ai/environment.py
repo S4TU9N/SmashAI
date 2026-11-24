@@ -10,8 +10,10 @@ from .rewards import calculate_reward
 
 
 class SmashEnvironment(gym.Env):
-    def __init__(self, render_mode=None):
+    def __init__(self, agent_config, render_mode=None):
         super().__init__()
+
+        self.agent_config = agent_config
 
         self.render_mode = render_mode
 
@@ -62,9 +64,7 @@ class SmashEnvironment(gym.Env):
         result = self.match.tick(dt)
 
         reward = calculate_reward(
-            self.fighter,
-            self.match.events,
-            dt,
+            self.fighter, self.match.events, dt, self.agent_config
         )
 
         if self.renderer:
@@ -83,11 +83,11 @@ class SmashEnvironment(gym.Env):
 
         if terminated or truncated:
             if result is self.fighter:
-                reward += config.WIN_REWARD
+                reward += self.agent_config.WIN_REWARD
             elif result is self.opponent:
-                reward += config.LOSS_REWARD
+                reward += self.agent_config.LOSS_REWARD
             else:
-                reward += config.DRAW_REWARD
+                reward += self.agent_config.DRAW_REWARD
 
         observation = get_observation(
             self.fighter,
@@ -104,6 +104,10 @@ class SmashEnvironment(gym.Env):
                 info["result"] = "loss"
             else:
                 info["result"] = "draw"
+
+            info["agent_damage"] = self.fighter.damage_percent
+            info["opponent_damage"] = self.opponent.damage_percent
+            info["match_duration"] = self.match.elapsed_time
 
         return observation, reward, terminated, truncated, info
 

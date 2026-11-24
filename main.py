@@ -1,77 +1,86 @@
-import numpy as np
+import argparse
+from importlib import import_module
+from pathlib import Path
 
-import config
-import simulation as s
-from ai.observations import get_observation
-from ai.rewards import calculate_reward
-from controllers import AIController
+from ai.checkpoint import read_checkpoint
+from ai.evaluate import evaluate
+from ai.train import main as train
 
-arena = s.Arena(config.ARENA_SCALE)
-arena.load("battlefield")
 
-player = s.Fighter(name="Player")
-jimmy = s.Fighter(name="Jimmy")
+def discover_agents():
+    agents_path = Path(__file__).parent / "ai" / "agents"
 
-fighters = [player, jimmy]
-match = s.Match(fighters, arena, max_time=config.MATCH_MAX_TIME)
-match.start()
+    return sorted(
+        directory.name
+        for directory in agents_path.iterdir()
+        if directory.is_dir() and (directory / "config.py").exists()
+    )
 
-if config.RENDER:
-    from controllers import PlayerController
-    from renderer import Renderer
 
-    renderer = Renderer(arena)
-    controller = PlayerController(renderer)
-    ai = AIController()
+def load_agent_config(agent_name):
+    if agent_name not in discover_agents():
+        raise ValueError(f"unknown agent: {agent_name}")
 
-    arena.load("battlefield")
-    match.start()
+    return import_module(f"ai.agents.{agent_name}.config")
 
-    fighter = match.fighters[0]
-    opponent = match.fighters[1]
 
-    observation = get_observation(fighter, opponent, arena)
+def list_agents():
+    agents = discover_agents()
 
-    print(observation)
-    print(observation.shape)
-    print(np.isfinite(observation).all())
+    if not agents:
+        print("no agents found")
+        return
 
-    while renderer.running:
-        dt = renderer.dt
-        actions = controller.get_actions()
-        ai_actions = ai.get_actions()
+    print("available agents:")
 
-        player.apply_input(actions)
-        jimmy.apply_input(ai_actions)
+    for agent in agents:
+        print(f"- {agent}")
 
-        if not renderer.running:
-            break
 
-        result = match.tick(dt)
+def main():
+    parser = argparse.ArgumentParser(prog="main")
+    subparsers = parser.add_subparsers(dest="command", required=True)
 
-        for fighter in match.fighters:
-            reward = calculate_reward(fighter, match.events, dt)
+    train_parser = subparsers.add_parser("train")
+    train_parser.add_argument("--agent", default="main")
 
-            if reward:
-                print(f"Reward: {reward}")
+    subparsers.add_parser("list")
 
-        for event in match.events:
-            print(event["type"], event)
+    evaluate_parser = subparsers.add_parser("evaluate")
 
-        if result is False:
-            pass
+    checkpoint_group = evaluate_parser.add_mutually_exclusive_group(required=True)
+
+    checkpoint_group.add_argument("--agent")
+    checkpoint_group.add_argument("--checkpoint", type=Path)
+
+    evaluate_parser.add_argument("--episodes", type=int, default=100)
+
+    args = parser.parse_args()
+
+    if args.command == "list":
+        list_agents()
+
+    elif args.command == "train":
+        agent_config = load_agent_config(args.agent)
+        train(args.agent, agent_config)
+
+    elif args.command == "evaluate":
+        if args.agent:
+            agent_name = args.agent
+            checkpoint_path = Path("checkpoints") / agent_name / "latest.pt"
         else:
-            print(f"Winner: {result}")
-            break
+            checkpoint_path = args.checkpoint
+            checkpoint = read_checkpoint(checkpoint_path)
+            agent_name = checkpoint["metadata"]["agent"]
 
-        renderer.draw(match.fighters, match)
+        agent_config = load_agent_config(agent_name)
 
-    renderer.close()
-else:
-    dt = 1 / 60
+        evaluate(
+            checkpoint_path,
+            args.episodes,
+            agent_config,
+        )
 
-    while True:
-        result = match.tick(dt)
 
-        if result is not False:
-            break
+if __name__ == "__main__":
+    main()

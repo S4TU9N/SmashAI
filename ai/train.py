@@ -1,3 +1,6 @@
+import json
+import signal
+from collections import deque
 from pathlib import Path
 
 from ai.checkpoint import load_checkpoint, save_checkpoint
@@ -9,7 +12,7 @@ from ai.rollout import RolloutBuffer
 from ai.value import ValueNetwork
 
 
-def main():
+def main(agent_name, agent_config):
     env = None
 
     policy = PolicyNetwork()
@@ -20,11 +23,21 @@ def main():
         value,
     )
 
-    checkpoint_path = Path("checkpoints/main/latest.pt")
-    history_path = Path("checkpoints/main/history")
+    agent_path = Path("checkpoints") / agent_name
+
+    checkpoint_path = agent_path / "latest.pt"
+    history_path = agent_path / "history"
+    episode_log_path = agent_path / "episodes.jsonl"
 
     iteration = 0
     total_timesteps = 0
+
+    recent_episodes = deque(maxlen=100)
+
+    if episode_log_path.exists():
+        with episode_log_path.open() as file:
+            for line in file:
+                recent_episodes.append(json.loads(line))
 
     if checkpoint_path.exists():
         print("loaded existing checkpoint")
@@ -44,11 +57,19 @@ def main():
 
     buffer = RolloutBuffer()
 
+    stop_requested = False
+
+    def handle_sigint(signum, frame):
+        nonlocal stop_requested
+        stop_requested = True
+
+    signal.signal(signal.SIGINT, handle_sigint)
+
     try:
-        env = SmashEnvironment(render_mode=None)
+        env = SmashEnvironment(agent_config, render_mode=None)
         observation, _ = env.reset()
 
-        while True:
+        while not stop_requested:
             buffer, observation, completed_episodes = collect_rollout(
                 env,
                 policy,
@@ -58,9 +79,39 @@ def main():
             )
 
             for episode in completed_episodes:
+                recent_episodes.append(episode)
+
+                with episode_log_path.open("a") as file:
+                    file.write(json.dumps(episode) + "\n")
+
                 print(
                     f"match: {episode['result']} | "
                     f"duration: {episode['match_duration']:.1f}s"
+                )
+
+            if recent_episodes:
+                win_rate = sum(
+                    episode["result"] == "win" for episode in recent_episodes
+                ) / len(recent_episodes)
+
+                average_duration = sum(
+                    episode["match_duration"] for episode in recent_episodes
+                ) / len(recent_episodes)
+
+                average_damage_dealt = sum(
+                    episode["opponent_damage"] for episode in recent_episodes
+                ) / len(recent_episodes)
+
+                average_damage_received = sum(
+                    episode["agent_damage"] for episode in recent_episodes
+                ) / len(recent_episodes)
+
+                print(
+                    f"recent performance ({len(recent_episodes)} matches) | "
+                    f"win rate: {win_rate:.1%} | "
+                    f"duration: {average_duration:.1f}s | "
+                    f"damage dealt: {average_damage_dealt:.1f}% | "
+                    f"damage received: {average_damage_received:.1f}%"
                 )
 
             iteration += 1
@@ -88,7 +139,7 @@ def main():
                 policy_optimizer,
                 value_optimizer,
                 metadata={
-                    "agent": "main",
+                    "agent": agent_name,
                     "iteration": iteration,
                     "total_timesteps": total_timesteps,
                 },
@@ -102,7 +153,7 @@ def main():
                     policy_optimizer,
                     value_optimizer,
                     metadata={
-                        "agent": "main",
+                        "agent": agent_name,
                         "iteration": iteration,
                         "total_timesteps": total_timesteps,
                     },
@@ -114,4 +165,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    from ai.agents.main import config as agent_config
+
+    main("main", agent_config)
